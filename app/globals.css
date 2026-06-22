@@ -1,0 +1,409 @@
+/* ===== 基礎與主題（極黑背景） ===== */
+:root {
+  --bg: #000000;
+  --surface: #0c0c0e;
+  --surface-2: #141417;
+  --border: #1f1f23;
+  --text: #f2f2f4;
+  --text-dim: #8a8a92;
+  --text-faint: #5a5a62;
+  --accent: #4f8cff;
+  --danger: #ff5a5a;
+  --done: #4caf7d;
+  --radius: 12px;
+  --tabbar-h: 46px;
+  --max-w: 900px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
+    "Noto Sans TC", "Microsoft JhengHei", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font-family: inherit; }
+
+.app {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+}
+
+/* ===== 頂部標題列 ===== */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(to bottom, #000 70%, rgba(0, 0, 0, 0));
+  padding: 13px 14px 9px;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.topbar h1 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.3px;
+}
+.subtitle {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ===== 行內編輯器（Markdown 般的順手編輯） ===== */
+.editor {
+  padding: 2px 8px 22px;
+}
+.editor .todo {
+  border-bottom: none;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+/* 編輯器為單行置中，圈不需位移 */
+.editor .check { margin-top: 0; }
+.editor .todo:hover { background: var(--surface); }
+.editor .todo:focus-within { background: var(--surface); }
+.todo-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 3px 0;
+}
+.todo-input::placeholder { color: var(--text-faint); }
+.todo.done .todo-input {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.todo-time {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* ===== 待辦清單區 ===== */
+.todo-area {
+  flex: 1;
+  padding: 0 16px 22px;
+}
+
+/* 日期分隔線 */
+.day-sep {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 2px 6px;
+}
+.day-sep span {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+.day-sep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* 單筆待辦 */
+.todo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid #101013;
+  transition: opacity 0.15s;
+}
+.todo:last-child { border-bottom: none; }
+.todo.pending { opacity: 0.45; }
+
+/* 勾選框：未完成＝紅色圓圈，完成＝綠色實心打勾 */
+.check {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: 2px solid var(--danger);
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+}
+.check:hover { border-color: #ff8585; }
+.check.checked {
+  background: var(--done);
+  border-color: var(--done);
+}
+.check.checked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 8px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  /* 以中心定位再旋轉，垂直略上提讓打勾視覺置中 */
+  transform: translate(-50%, -58%) rotate(45deg);
+}
+/* 主頁多行情境：圈對齊第一行文字 */
+.todo .check { margin-top: 2px; }
+
+.todo-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.todo-text {
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.todo.done .todo-text {
+  color: var(--text-faint);
+  text-decoration: line-through;
+}
+.todo-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.origin {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.origin .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* 刪除單筆按鈕 */
+.todo-del {
+  flex: none;
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.todo:hover .todo-del { opacity: 1; }
+.todo-del:hover { color: var(--danger); }
+@media (hover: none) {
+  .todo-del { opacity: 0.5; } /* 觸控裝置常駐顯示 */
+}
+
+/* 空狀態 */
+.empty {
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 14px;
+  padding: 60px 20px;
+  line-height: 1.7;
+}
+
+/* ===== 底部分割表（整塊長方形、彼此相黏） ===== */
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: #000;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding-left: 0;
+  padding-right: 0;
+  overflow-x: auto;
+  z-index: 10;
+}
+.tabbar::-webkit-scrollbar { height: 0; }
+.tabbar form { flex: none; display: flex; }
+
+.tab {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  min-width: 70px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500; /* 固定字重，避免選取時寬度跳動 */
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  text-decoration: none;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+  /* 預設用半透明黑覆蓋壓暗（保留原色相，不會變濁） */
+  box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 0.18s ease;
+}
+.tab + .tab,
+.tabbar form .tab-add {
+  border-left: 1px solid rgba(0, 0, 0, 0.35); /* 相黏但有細分隔 */
+}
+.tab:hover { box-shadow: inset 0 0 0 999px rgba(0, 0, 0, 0.32); }
+/* 選取：全彩 + 頂部白色指示條（皆為 inset，不影響排版） */
+.tab.active {
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.95);
+}
+.tab .count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.38);
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+
+.tab-add {
+  flex: none;
+  width: 46px;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background: #161619;
+  color: var(--text-dim);
+  font-size: 21px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tab-add:hover { background: var(--surface-2); color: var(--text); }
+
+/* ===== 設定彈窗 ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 20px;
+}
+.modal {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+}
+.modal h2 {
+  margin: 0 0 16px;
+  font-size: 17px;
+}
+.field {
+  display: block;
+  margin-bottom: 16px;
+}
+.field > span {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.modal input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 15px;
+  padding: 11px 12px;
+  outline: none;
+}
+.modal input:focus { border-color: var(--accent); }
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.swatch {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.1s;
+}
+.swatch:hover { transform: scale(1.1); }
+.swatch.selected {
+  border-color: var(--text);
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor;
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.modal-actions .spacer { flex: 1; }
+.modal-actions button {
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+.modal-actions button:disabled { opacity: 0.5; cursor: default; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-ghost { background: var(--surface-2); color: var(--text-dim); }
+.btn-danger { background: transparent; color: var(--danger); padding-left: 0; }
+.btn-danger:hover { text-decoration: underline; }
+
+/* ===== 手機適配 ===== */
+@media (max-width: 600px) {
+  .topbar { padding: 11px 12px 8px; }
+  .topbar h1 { font-size: 17px; }
+  .todo-area { padding: 0 12px 20px; }
+  .editor { padding: 2px 6px 20px; }
+  .tab { min-width: 62px; padding: 0 13px; }
+  .tab-add { width: 42px; }
+}
+
+/* 觸控裝置：刪除鈕常駐顯示（沒有 hover） */
+@media (hover: none) {
+  .todo-del { opacity: 0.55; }
+}

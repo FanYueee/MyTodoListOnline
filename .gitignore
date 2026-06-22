@@ -1,0 +1,14 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next
+/out
+
+# misc
+.DS_Store
+*.log
+.env*
+
+# 使用者的待辦內容（Markdown 資料），保留資料夾但不追蹤內容
+/data/*.md

@@ -1,0 +1,16 @@
+{
+  "name": "mytodolist",
+  "version": "1.0.0",
+  "private": true,
+  "description": "極簡待辦清單 — 每個清單就是一個 Markdown 檔",
+  "scripts": {
+    "dev": "WATCHPACK_POLLING=true next dev -H 0.0.0.0",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
