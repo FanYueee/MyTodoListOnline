@@ -14,10 +14,8 @@ export default async function ListPage(props) {
   if (!list) redirect("/");
 
   const lists = await getAllLists();
-  // 由上而下＝時間順序（舊→新）
-  const todos = [...list.todos].sort(
-    (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-  );
+  // 由上而下＝清單順序（保留插入位置，不再依 createdAt 重排）
+  const todos = list.todos;
   const left = list.todos.filter((t) => !t.done).length;
 
   return (
