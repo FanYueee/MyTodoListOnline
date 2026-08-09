@@ -10,8 +10,8 @@ import {
 } from "../app/actions.js";
 import { formatTime, formatDayLabel, dayKey } from "../lib/format.js";
 import { mergeTodos } from "../lib/mergeTodos.js";
+import { ChevronRightIcon, CloseIcon } from "./Icons.jsx";
 
-const POLL_MS = 4000; // 多分頁自動同步的輪詢間隔
 const SAVE_DEBOUNCE = 500;
 const EMPTY_ID = "__new__"; // 首列尾端空白列的固定 id（避免 SSR/hydration 不一致）
 
@@ -40,7 +40,9 @@ function isReal(row) {
 export default function Editor({ listId, initialTodos }) {
   const [todos, setTodos] = useState(() => {
     const arr = initialTodos.map(fromServer);
-    arr.push(emptyRow(EMPTY_ID));
+    // 舊資料可能曾把固定的 SSR 空白列 id（__new__）存進檔案；此時尾列
+    // 改用真正唯一的 id，避免 React key 重複而渲染出兩筆完成項。
+    arr.push(emptyRow(arr.some((t) => t.id === EMPTY_ID) ? genId() : EMPTY_ID));
     return arr;
   });
   const [mounted, setMounted] = useState(false); // 時間/日期分隔線只在掛載後渲染（避免時區 hydration 不一致）
@@ -51,7 +53,11 @@ export default function Editor({ listId, initialTodos }) {
   const focusId = useRef(null); // 下一次 render 要聚焦的行
   const focusedId = useRef(null); // 目前聚焦中的行（合併同步時需保護）
   const dirty = useRef(new Set()); // 有未存變更的行 id（合併同步時需保護）
+  const inFlight = useRef(new Map()); // id -> 尚未收斂的寫入數，避免舊回應覆蓋較新的操作
+  const mutationVersion = useRef(new Map()); // id -> 該列最後一次送出寫入的版本
   const saveTimer = useRef(null);
+  const savingIndicatorTimer = useRef(null);
+  const savedIndicatorTimer = useRef(null);
   const chain = useRef(Promise.resolve()); // 串接所有 server 呼叫，維持先後順序
   const pending = useRef(0); // 進行中的存檔數
   const latest = useRef(todos); // 最新 todos（供計時器 / 卸載時使用，避免 stale closure）
@@ -69,6 +75,8 @@ export default function Editor({ listId, initialTodos }) {
     return () => {
       isMounted.current = false;
       if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (savingIndicatorTimer.current) clearTimeout(savingIndicatorTimer.current);
+      if (savedIndicatorTimer.current) clearTimeout(savedIndicatorTimer.current);
       // 卸載前把未存的變更補送出去（不更新畫面），確保最後編輯不遺失
       flushDirty(true);
     };
@@ -89,10 +97,17 @@ export default function Editor({ listId, initialTodos }) {
 
   /* ---------- 與伺服器合併（多分頁自動同步） ---------- */
 
-  const applyServer = useCallback((serverTodos) => {
+  const applyServer = useCallback((serverTodos, settled = null) => {
     if (!isMounted.current || !serverTodos) return;
     const protectedIds = new Set(dirty.current);
     if (focusedId.current) protectedIds.add(focusedId.current);
+    for (const id of inFlight.current.keys()) {
+      // 收到「這次操作自己」的回應時，只要中間沒有更新的操作，就應採用
+      // 伺服器快照來把新列標記為 persisted。若已有較新的操作才保護本機值。
+      if (!settled || id !== settled.id || mutationVersion.current.get(id) !== settled.version) {
+        protectedIds.add(id);
+      }
+    }
     setTodos((cur) => mergeTodos(cur, serverTodos, protectedIds, () => emptyRow()));
   }, []);
 
@@ -124,27 +139,61 @@ export default function Editor({ listId, initialTodos }) {
 
   // 把一個 server 呼叫排入序列，並更新存檔狀態 + 合併回傳快照
   const enqueue = useCallback(
-    (thunk) => {
+    (thunk, affectedId = null) => {
+      let operationVersion = null;
+      if (affectedId) {
+        inFlight.current.set(affectedId, (inFlight.current.get(affectedId) || 0) + 1);
+        operationVersion = (mutationVersion.current.get(affectedId) || 0) + 1;
+        mutationVersion.current.set(affectedId, operationVersion);
+      }
       const p = chain.current.then(thunk);
       chain.current = p.then(
         () => {},
         () => {}
       );
       pending.current += 1;
-      setStatus("saving");
+      if (pending.current === 1) {
+        // 本機檔案寫入通常只需數十毫秒；不讓快速操作閃出「儲存中」造成
+        // 卡頓錯覺，超過 350ms 才顯示進行中的狀態。
+        if (savedIndicatorTimer.current) clearTimeout(savedIndicatorTimer.current);
+        setStatus("idle");
+        savingIndicatorTimer.current = setTimeout(() => {
+          if (isMounted.current && pending.current > 0) setStatus("saving");
+        }, 350);
+      }
       p.then(
         (snapshot) => {
           pending.current -= 1;
-          applyServer(snapshot);
+          // 仍保護此列到本次回應合併完成：這樣前一次操作的快照不會把
+          // 使用者剛剛做出的第二次勾選覆蓋掉。
+          applyServer(
+            snapshot,
+            affectedId ? { id: affectedId, version: operationVersion } : null
+          );
+          if (affectedId) {
+            const remaining = (inFlight.current.get(affectedId) || 1) - 1;
+            if (remaining > 0) inFlight.current.set(affectedId, remaining);
+            else inFlight.current.delete(affectedId);
+          }
           if (pending.current === 0 && isMounted.current) {
+            if (savingIndicatorTimer.current) clearTimeout(savingIndicatorTimer.current);
             setStatus("saved");
-            setTimeout(() => {
+            if (savedIndicatorTimer.current) clearTimeout(savedIndicatorTimer.current);
+            savedIndicatorTimer.current = setTimeout(() => {
               if (isMounted.current && pending.current === 0) setStatus("idle");
-            }, 1500);
+            }, 900);
           }
         },
         () => {
           pending.current -= 1;
+          if (affectedId) {
+            const remaining = (inFlight.current.get(affectedId) || 1) - 1;
+            if (remaining > 0) inFlight.current.set(affectedId, remaining);
+            else inFlight.current.delete(affectedId);
+          }
+          if (pending.current === 0 && savingIndicatorTimer.current) {
+            clearTimeout(savingIndicatorTimer.current);
+          }
           if (isMounted.current) setStatus("error");
         }
       );
@@ -164,7 +213,7 @@ export default function Editor({ listId, initialTodos }) {
           const pr = resolveSave(id);
           if (pr) pr.catch(() => {});
         } else {
-          enqueue(() => resolveSave(id) || Promise.resolve(null));
+          enqueue(() => resolveSave(id) || Promise.resolve(null), id);
         }
       }
     },
@@ -176,10 +225,9 @@ export default function Editor({ listId, initialTodos }) {
     saveTimer.current = setTimeout(() => flushDirty(false), SAVE_DEBOUNCE);
   }, [flushDirty]);
 
-  /* ---------- 輪詢（分頁可見時，把其他分頁的變更抓進來） ---------- */
+  /* ---------- 即時通知（其他使用者寫入後立刻抓取最新快照） ---------- */
 
   useEffect(() => {
-    let timer = null;
     const poll = async () => {
       if (document.visibilityState !== "visible") return;
       if (pending.current > 0) return; // 有存檔進行中，等它回傳快照即可
@@ -190,30 +238,42 @@ export default function Editor({ listId, initialTodos }) {
         /* 忽略單次輪詢失敗 */
       }
     };
-    timer = setInterval(poll, POLL_MS);
     const onVisible = () => {
       if (document.visibilityState === "visible") poll();
     };
+    const onChanged = (event) => {
+      const change = event.detail;
+      if (!change || change.type === "lists" || change.listId === listId) poll();
+    };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", poll);
+    window.addEventListener("todos:changed", onChanged);
     return () => {
-      clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", poll);
+      window.removeEventListener("todos:changed", onChanged);
     };
   }, [listId, applyServer]);
 
   /* ---------- 互動 ---------- */
 
   function onText(id, value) {
+    const current = todos.find((t) => t.id === id);
+    // __new__ 只用來讓第一個「尚未輸入」的尾列 SSR/hydration 穩定。第一次
+    // 輸入時就換成真正的 id，絕不能將 __new__ 寫入資料庫。
+    const nextId = id === EMPTY_ID && current && !current.persisted ? genId() : id;
+    if (nextId !== id) focusId.current = nextId;
     setTodos((cur) => {
-      const next = cur.map((t) => (t.id === id ? { ...t, text: value } : t));
+      const next = cur.map((t) =>
+        t.id === id ? { ...t, id: nextId, text: value } : t
+      );
       // 若在尾端空白列輸入了字，補一列新的空白尾列
       const last = next[next.length - 1];
       if (last.text.trim() !== "") next.push(emptyRow());
       return next;
     });
-    dirty.current.add(id);
+    dirty.current.delete(id);
+    dirty.current.add(nextId);
     scheduleSave();
   }
 
@@ -242,7 +302,7 @@ export default function Editor({ listId, initialTodos }) {
       const prev = active[ai - 1];
       if (prev) focusId.current = prev.id;
       dirty.current.delete(id);
-      if (row.persisted) enqueue(() => deleteTodoAction(listId, id));
+      if (row.persisted) enqueue(() => deleteTodoAction(listId, id), id);
       setTodos((cur) => cur.filter((t) => t.id !== id));
     } else if (e.key === "ArrowUp" && ai > 0) {
       e.preventDefault();
@@ -266,18 +326,17 @@ export default function Editor({ listId, initialTodos }) {
           : t
       )
     );
-    dirty.current.add(id);
     // 勾選是明確動作，立即送出（帶明確的 done 值）
     enqueue(() => {
       dirty.current.delete(id);
       return toggleTodoAction(listId, id, nextDone);
-    });
+    }, id);
   }
 
   function removeRow(id) {
     const row = todos.find((t) => t.id === id);
     dirty.current.delete(id);
-    if (row && row.persisted) enqueue(() => deleteTodoAction(listId, id));
+    if (row && row.persisted) enqueue(() => deleteTodoAction(listId, id), id);
     setTodos((cur) => {
       const next = cur.filter((t) => t.id !== id);
       const last = next[next.length - 1];
@@ -363,7 +422,7 @@ export default function Editor({ listId, initialTodos }) {
             aria-label="刪除這筆待辦"
             onClick={() => removeRow(t.id)}
           >
-            ✕
+            <CloseIcon />
           </button>
         )}
       </div>
@@ -410,7 +469,7 @@ export default function Editor({ listId, initialTodos }) {
             aria-expanded={!collapsed}
           >
             <span className={`chevron${collapsed ? "" : " open"}`} aria-hidden="true">
-              ▸
+              <ChevronRightIcon />
             </span>
             <span>已完成</span>
             <span className="done-count">{doneTodos.length}</span>

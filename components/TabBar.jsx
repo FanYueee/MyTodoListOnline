@@ -7,7 +7,8 @@ import {
   updateListAction,
   deleteListAction,
 } from "../app/actions.js";
-import { COLORS, textColorFor } from "../lib/colors.js";
+import { COLORS } from "../lib/colors.js";
+import { PlusIcon } from "./Icons.jsx";
 
 export default function TabBar({ lists, activeId }) {
   const [editing, setEditing] = useState(null); // 正在設定的清單
@@ -69,29 +70,28 @@ export default function TabBar({ lists, activeId }) {
   return (
     <>
       <nav className="tabbar" ref={navRef}>
+        <div className="nav-brand">
+          <strong>MyToDoListOnline</strong>
+        </div>
+        <span className="nav-section">總覽</span>
         {/* 主頁分頁 */}
         <Link
           href="/"
           ref={activeId === "home" ? activeRef : null}
           className={`tab${activeId === "home" ? " active" : ""}`}
-          style={{ background: "#3a3a44" }}
+          style={{ "--tab-color": "#8a8d98" }}
         >
-          🏠 主頁
+          <span className="tab-label">主頁</span>
         </Link>
 
-        {/* 各清單分頁：整塊長方形、顏色即背景、彼此相黏 */}
+        <span className="nav-section nav-lists">清單</span>
+        {/* 各清單的顏色只作識別，不再以大面積色塊干擾閱讀。 */}
         {lists.map((list) => {
           const active = list.id === activeId;
-          const fg = active ? textColorFor(list.color) : "#fff";
           const inner = (
             <>
               <span className="tab-label">{list.name}</span>
               {list.openCount > 0 && <span className="count">{list.openCount}</span>}
-              {active && (
-                <span className="tab-gear" aria-hidden="true">
-                  ⚙
-                </span>
-              )}
             </>
           );
           return active ? (
@@ -100,7 +100,7 @@ export default function TabBar({ lists, activeId }) {
               ref={activeRef}
               type="button"
               className="tab active"
-              style={{ background: list.color, color: fg }}
+              style={{ "--tab-color": list.color }}
               onClick={() => openSettings(list)}
               aria-label={`${list.name}（點擊設定：改名 / 顏色 / 刪除）`}
               title="點擊設定（改名 / 顏色 / 刪除）"
@@ -112,7 +112,7 @@ export default function TabBar({ lists, activeId }) {
               key={list.id}
               href={`/list/${encodeURIComponent(list.id)}`}
               className="tab"
-              style={{ background: list.color, color: fg }}
+              style={{ "--tab-color": list.color }}
             >
               {inner}
             </Link>
@@ -120,9 +120,10 @@ export default function TabBar({ lists, activeId }) {
         })}
 
         {/* 新增清單 */}
-        <form action={createListAction}>
+        <form action={createListAction} className="add-list-form">
           <button type="submit" className="tab-add" title="新增清單" aria-label="新增清單">
-            ＋
+            <span className="tab-icon"><PlusIcon /></span>
+            <span>新增清單</span>
           </button>
         </form>
       </nav>

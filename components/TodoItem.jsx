@@ -7,6 +7,7 @@ import {
   insertTodoAction,
 } from "../app/actions.js";
 import { formatTime } from "../lib/format.js";
+import { CloseIcon } from "./Icons.jsx";
 
 export default function TodoItem({ todo, list, homeMode }) {
   const [pending, start] = useTransition();
@@ -82,7 +83,7 @@ export default function TodoItem({ todo, list, homeMode }) {
         aria-label="刪除這筆待辦"
         onClick={doDelete}
       >
-        ✕
+        <CloseIcon />
       </button>
     </div>
   );

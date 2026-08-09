@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getList, getAllLists } from "../../../lib/store.js";
 import TabBar from "../../../components/TabBar.jsx";
 import Editor from "../../../components/Editor.jsx";
+import LiveSync from "../../../components/LiveSync.jsx";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function ListPage(props) {
 
   return (
     <div className="app">
+      <LiveSync listId={list.id} />
       <header className="topbar">
         <h1>{list.name}</h1>
         <span className="subtitle">

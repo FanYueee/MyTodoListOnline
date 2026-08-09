@@ -2,7 +2,7 @@ import { getAllLists } from "../lib/store.js";
 import { groupByDay } from "../lib/format.js";
 import TabBar from "../components/TabBar.jsx";
 import TodoGroups from "../components/TodoGroups.jsx";
-import AutoRefresh from "../components/AutoRefresh.jsx";
+import LiveSync from "../components/LiveSync.jsx";
 
 // 永遠在請求當下讀取檔案，確保資料最新
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export default async function HomePage() {
 
   return (
     <div className="app">
-      <AutoRefresh />
+      <LiveSync />
       <header className="topbar">
         <h1>主頁</h1>
         <span className="subtitle">
